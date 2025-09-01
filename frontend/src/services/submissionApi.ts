@@ -1,0 +1,49 @@
+import { ApiResponse, Submission } from '../types';
+
+const API_BASE_URL = import.meta.env.VITE_SUBMISSION_SERVICE_URL || 'http://localhost:3003';
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` })
+  };
+};
+
+export async function submitSolution(
+  problemId: string,
+  code: string,
+  language: 'javascript' | 'cpp'
+): Promise<ApiResponse<Submission>> {
+  const response = await fetch(`${API_BASE_URL}/api/submissions`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ problemId, code, language })
+  });
+
+  return response.json();
+}
+
+export async function getUserSubmissions(userId: string): Promise<ApiResponse<Submission[]>> {
+  const response = await fetch(`${API_BASE_URL}/api/submissions/user/${userId}`, {
+    headers: getAuthHeaders()
+  });
+
+  return response.json();
+}
+
+export async function getSubmission(id: string): Promise<ApiResponse<Submission>> {
+  const response = await fetch(`${API_BASE_URL}/api/submissions/${id}`, {
+    headers: getAuthHeaders()
+  });
+
+  return response.json();
+}
+
+export async function getProblemSubmissions(problemId: string): Promise<ApiResponse<Submission[]>> {
+  const response = await fetch(`${API_BASE_URL}/api/submissions/problem/${problemId}`, {
+    headers: getAuthHeaders()
+  });
+
+  return response.json();
+}
