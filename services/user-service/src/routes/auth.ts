@@ -170,8 +170,9 @@ router.get("/leaderboard", async (req, res) => {
     console.log(`Found ${users.length} users`);
 
     // Get aggregated submission data from submission service
+    const submissionServiceUrl = process.env.SUBMISSION_SERVICE_URL || 'http://localhost:3003';
     const submissionResponse = await fetch(
-      `http://localhost:3003/api/submissions/leaderboard-data`
+      `${submissionServiceUrl}/api/submissions/leaderboard-data`
     );
 
     let submissionData: any[] = [];
