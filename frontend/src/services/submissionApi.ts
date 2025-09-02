@@ -1,6 +1,6 @@
 import { ApiResponse, Submission } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_SUBMISSION_SERVICE_URL || 'http://localhost:3003';
+const API_BASE_URL = (import.meta as any).env.VITE_SUBMISSION_SERVICE_URL || 'http://13.203.186.121:3003';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');

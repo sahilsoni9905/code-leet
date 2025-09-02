@@ -11,7 +11,7 @@ class SocketService {
 
     const SUBMISSION_SERVICE_URL =
       (import.meta as any).env.VITE_SUBMISSION_SERVICE_URL ||
-      "http://localhost:3003";
+      "http://13.203.186.121:3003";
 
     this.socket = io(SUBMISSION_SERVICE_URL, {
       transports: ["websocket", "polling"],

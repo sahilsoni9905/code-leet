@@ -1,7 +1,8 @@
 import { ApiResponse } from "../types";
 
 const API_BASE_URL =
-  (import.meta as any).env.VITE_USER_SERVICE_URL || "http://localhost:3001";
+  (import.meta as any).env.VITE_USER_SERVICE_URL ||
+  "http://13.201.255.178:3001";
 
 export interface LeaderboardUser {
   _id: string;

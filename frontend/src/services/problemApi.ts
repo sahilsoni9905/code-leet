@@ -1,6 +1,6 @@
 import { ApiResponse, Problem } from '../types';
 
-const API_BASE_URL = import.meta.env.VITE_PROBLEM_SERVICE_URL || 'http://localhost:3002';
+const API_BASE_URL = (import.meta as any).env.VITE_PROBLEM_SERVICE_URL || 'http://3.111.163.113:3002';
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem('token');

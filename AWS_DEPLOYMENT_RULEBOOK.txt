@@ -1,0 +1,445 @@
+# 🚀 AWS MICROSERVICES DEPLOYMENT RULEBOOK
+# Complete Step-by-Step Guide for Codo-Leet Platform
+# Based on Successful User Service Deployment
+
+================================================================================
+📋 PREREQUISITES
+================================================================================
+
+1. AWS Account Setup:
+   - Create AWS account (Free Tier eligible)
+   - Create EC2 Key Pair (.pem file)
+   - Download and save the key pair securely
+
+2. MongoDB Atlas Setup:
+   - Create MongoDB Atlas account (Free Tier)
+   - Create cluster and get connection string
+   - Whitelist 0.0.0.0/0 for development (or specific EC2 IPs)
+
+3. GitHub Repository:
+   - Push your code to GitHub
+   - Repository URL: https://github.com/YOUR_USERNAME/YOUR_REPO
+
+================================================================================
+🔧 AWS EC2 INSTANCE SETUP (For Each Service)
+================================================================================
+
+STEP 1: Launch EC2 Instance
+----------------------------
+1. Go to AWS Console → EC2 → Launch Instance
+2. Choose Instance Configuration:
+   - AMI: Ubuntu Server 22.04 LTS (Free Tier)
+   - Instance Type: t2.micro (Free Tier)
+   - Key Pair: Select your downloaded key pair
+   - Storage: 8 GB gp2 (Free Tier)
+
+3. Configure Security Group:
+   - Allow SSH (Port 22) from 0.0.0.0/0
+   - Allow Custom TCP for your service port from 0.0.0.0/0
+     * User Service: Port 3001
+     * Problem Service: Port 3002
+     * Submission Service: Port 3003
+     * Evaluator Service: Port 3004
+     * Frontend: Port 80, 443
+
+4. Launch Instance and note the Public IP
+
+STEP 2: Connect to Instance
+---------------------------
+# From your local machine (Windows PowerShell/Command Prompt)
+ssh -i "your-key.pem" ubuntu@YOUR_PUBLIC_IP
+
+# If permission error on Windows:
+icacls "your-key.pem" /reset
+icacls "your-key.pem" /grant:r "%username%":(R)
+icacls "your-key.pem" /inheritance:r
+
+================================================================================
+⚙️ INSTANCE BASIC SETUP (Run on Each EC2 Instance)
+================================================================================
+
+STEP 3: Install Required Software
+----------------------------------
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Node.js 18
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs build-essential git
+
+# Install PM2 (Process Manager)
+sudo npm install -g pm2
+
+# Install network tools
+sudo apt install net-tools -y
+
+# For Evaluator Service ONLY - Install Docker
+sudo apt-get install -y docker.io
+sudo usermod -aG docker ubuntu
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo docker pull node:18-alpine
+sudo docker pull gcc:latest
+
+# For Frontend ONLY - Install Nginx
+sudo apt-get install -y nginx
+
+STEP 4: Clone Repository
+------------------------
+# Clone your repository
+git clone https://github.com/YOUR_USERNAME/YOUR_REPO.git
+cd YOUR_REPO
+
+================================================================================
+🎯 SERVICE DEPLOYMENT RULES (Follow for Each Service)
+================================================================================
+
+FOR USER SERVICE (Port 3001):
+==============================
+
+STEP 5A: Setup User Service
+----------------------------
+cd ~/YOUR_REPO/services/user-service
+
+# Install dependencies
+npm install
+
+# Create clean environment file (CRITICAL: No comments!)
+cat > .env << 'EOF'
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database
+JWT_SECRET=your-super-secret-jwt-key-change-this
+PORT=3001
+NODE_ENV=production
+EOF
+
+# Fix TypeScript configuration (CRITICAL for compilation)
+cat > tsconfig.json << 'EOF'
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+EOF
+
+# Remove ES module type from package.json (if exists)
+sed -i '/"type": "module"/d' package.json
+
+# Build the service
+npm run build
+
+# Verify compilation (should show require() not import)
+head -5 dist/index.js
+
+# Start service with PM2
+pm2 start dist/index.js --name "user-service"
+
+# Save PM2 configuration
+pm2 save
+pm2 startup
+# IMPORTANT: Copy and run the command PM2 shows
+
+# Verify service is running
+pm2 status
+pm2 logs user-service --lines 10
+sudo netstat -tlnp | grep :3001
+
+# Test service
+curl http://localhost:3001/health
+curl http://YOUR_PUBLIC_IP:3001/health
+
+FOR PROBLEM SERVICE (Port 3002):
+=================================
+
+STEP 5B: Setup Problem Service
+-------------------------------
+cd ~/YOUR_REPO/services/problem-service
+
+# Follow same steps as User Service but change:
+# - PORT=3002 in .env
+# - pm2 start dist/index.js --name "problem-service"
+# - Test on port 3002
+
+FOR SUBMISSION SERVICE (Port 3003):
+====================================
+
+STEP 5C: Setup Submission Service
+----------------------------------
+cd ~/YOUR_REPO/services/submission-service
+
+# Create .env with inter-service URLs
+cat > .env << 'EOF'
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/database
+JWT_SECRET=your-super-secret-jwt-key-change-this
+PORT=3003
+PROBLEM_SERVICE_URL=http://PROBLEM_SERVICE_IP:3002
+EVALUATOR_SERVICE_URL=http://EVALUATOR_SERVICE_IP:3004
+NODE_ENV=production
+EOF
+
+# Follow same build and deployment steps
+# Test on port 3003
+
+FOR EVALUATOR SERVICE (Port 3004):
+===================================
+
+STEP 5D: Setup Evaluator Service
+---------------------------------
+cd ~/YOUR_REPO/services/evaluator-service
+
+# Create .env (no MongoDB needed)
+cat > .env << 'EOF'
+PORT=3004
+NODE_ENV=production
+EOF
+
+# Ensure Docker is installed and running
+sudo systemctl status docker
+
+# Follow same build and deployment steps
+# Test on port 3004
+
+FOR FRONTEND SERVICE (Port 80):
+================================
+
+STEP 5E: Setup Frontend
+-----------------------
+cd ~/YOUR_REPO/frontend
+
+# Install dependencies
+npm install
+
+# Create .env with all service IPs
+cat > .env << 'EOF'
+VITE_USER_SERVICE_URL=http://USER_SERVICE_IP:3001
+VITE_PROBLEM_SERVICE_URL=http://PROBLEM_SERVICE_IP:3002
+VITE_SUBMISSION_SERVICE_URL=http://SUBMISSION_SERVICE_IP:3003
+EOF
+
+# Build frontend
+npm run build
+
+# Configure Nginx
+sudo tee /etc/nginx/sites-available/codo-leet << 'EOF'
+server {
+    listen 80;
+    server_name YOUR_FRONTEND_IP;
+    
+    location / {
+        root /home/ubuntu/YOUR_REPO/frontend/dist;
+        try_files $uri $uri/ /index.html;
+    }
+    
+    # CORS Headers for API calls
+    add_header 'Access-Control-Allow-Origin' '*' always;
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+    add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Accept' always;
+}
+EOF
+
+# Enable site
+sudo ln -s /etc/nginx/sites-available/codo-leet /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t
+sudo systemctl restart nginx
+sudo systemctl enable nginx
+
+================================================================================
+🔍 TESTING AND VERIFICATION RULES
+================================================================================
+
+STEP 6: Health Check Commands
+-----------------------------
+# For each service, verify:
+
+1. PM2 Status:
+   pm2 status
+
+2. Port Listening:
+   sudo netstat -tlnp | grep :PORT_NUMBER
+
+3. Local Health Check:
+   curl http://localhost:PORT_NUMBER/health
+
+4. External Access:
+   curl http://PUBLIC_IP:PORT_NUMBER/health
+
+5. Service Logs:
+   pm2 logs SERVICE_NAME --lines 20
+
+STEP 7: API Testing Commands
+----------------------------
+# User Service (Port 3001):
+curl -X POST http://PUBLIC_IP:3001/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test","email":"test@test.com","password":"test123"}'
+
+# Problem Service (Port 3002):
+curl http://PUBLIC_IP:3002/api/problems
+
+# Submission Service (Port 3003):
+curl http://PUBLIC_IP:3003/api/submissions
+
+# Frontend (Port 80):
+curl http://PUBLIC_IP
+
+================================================================================
+🚨 TROUBLESHOOTING RULES
+================================================================================
+
+ISSUE 1: Service Won't Start
+----------------------------
+SOLUTION:
+1. Check PM2 logs: pm2 logs SERVICE_NAME
+2. Check .env file has NO comments
+3. Verify tsconfig.json uses "module": "CommonJS"
+4. Run directly: node dist/index.js
+5. Check MongoDB connection string
+
+ISSUE 2: Cannot Access Externally
+----------------------------------
+SOLUTION:
+1. Check AWS Security Group allows the port
+2. Verify service binds to 0.0.0.0 not 127.0.0.1
+3. Check if port is listening: sudo netstat -tlnp | grep :PORT
+
+ISSUE 3: Module Import Errors
+------------------------------
+SOLUTION:
+1. Remove "type": "module" from package.json
+2. Use CommonJS in tsconfig.json
+3. Rebuild: rm -rf dist/ && npm run build
+4. Alternative: Use tsx: pm2 start --interpreter tsx src/index.ts
+
+ISSUE 4: MongoDB Connection Failed
+----------------------------------
+SOLUTION:
+1. Check connection string format
+2. Verify MongoDB Atlas IP whitelist
+3. Test connection: mongo "CONNECTION_STRING"
+
+================================================================================
+📊 DEPLOYMENT ARCHITECTURE OVERVIEW
+================================================================================
+
+OPTION A: Single Instance (Cost: FREE for 12 months)
+-----------------------------------------------------
+EC2 Instance (t2.micro):
+├── User Service (Port 3001)
+├── Problem Service (Port 3002)
+├── Submission Service (Port 3003)
+├── Evaluator Service (Port 3004)
+└── Frontend (Port 80)
+
+OPTION B: Separate Instances (Cost: FREE for 12 months)
+--------------------------------------------------------
+├── User Service EC2 (t2.micro, Port 3001)
+├── Problem Service EC2 (t2.micro, Port 3002)
+├── Submission Service EC2 (t2.micro, Port 3003)
+├── Evaluator Service EC2 (t2.micro, Port 3004)
+└── Frontend EC2 (t2.micro, Port 80)
+
+================================================================================
+💰 COST MANAGEMENT RULES
+================================================================================
+
+1. Always use t2.micro for Free Tier
+2. Set up billing alerts at $1, $5, $10
+3. Monitor Free Tier usage in AWS Console
+4. After 12 months: ~$8.50/month per t2.micro instance
+
+================================================================================
+🔄 MAINTENANCE RULES
+================================================================================
+
+DAILY:
+- Check pm2 status
+- Monitor logs: pm2 logs
+
+WEEKLY:
+- Update system: sudo apt update && sudo apt upgrade
+- Restart services if needed: pm2 restart all
+
+MONTHLY:
+- Check AWS billing
+- Review security groups
+- Backup important data
+
+================================================================================
+📱 QUICK REFERENCE COMMANDS
+================================================================================
+
+# Service Management:
+pm2 start dist/index.js --name "service-name"
+pm2 stop service-name
+pm2 restart service-name
+pm2 logs service-name
+pm2 monit
+
+# System Monitoring:
+sudo netstat -tlnp | grep :PORT
+htop
+df -h
+free -m
+
+# Git Updates:
+git pull origin main
+npm run build
+pm2 restart service-name
+
+# Emergency Stop All:
+pm2 stop all
+
+================================================================================
+✅ SUCCESS CRITERIA
+================================================================================
+
+Your deployment is successful when:
+
+1. ✅ All PM2 services show "online" status
+2. ✅ All ports are listening (netstat shows them)
+3. ✅ Health endpoints return {"status":"healthy"}
+4. ✅ API endpoints respond correctly
+5. ✅ Frontend loads and connects to backend
+6. ✅ User registration/login works
+7. ✅ MongoDB connections are stable
+8. ✅ PM2 restarts services on reboot
+
+================================================================================
+🎯 DEPLOYMENT ORDER (RECOMMENDED)
+================================================================================
+
+1. User Service (Port 3001) - Authentication foundation
+2. Problem Service (Port 3002) - Problem data
+3. Evaluator Service (Port 3004) - Code execution
+4. Submission Service (Port 3003) - Depends on Problem + Evaluator
+5. Frontend (Port 80) - Connects to all services
+
+================================================================================
+📞 EMERGENCY RECOVERY
+================================================================================
+
+If Everything Breaks:
+1. pm2 stop all
+2. pm2 delete all
+3. cd ~/YOUR_REPO && git pull
+4. Redeploy services one by one
+5. Check logs at each step
+
+Remember: This rulebook is based on the successful deployment of User Service
+on AWS EC2 with IP 13.201.255.178:3001 ✅
+
+================================================================================
+END OF RULEBOOK
+================================================================================
