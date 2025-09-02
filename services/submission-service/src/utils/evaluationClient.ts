@@ -1,8 +1,9 @@
 import Submission from "../models/Submission";
 import { io } from "../index";
 
-const PROBLEM_SERVICE_URL = "http://localhost:3002";
-const EVALUATOR_SERVICE_URL = process.env.EVALUATOR_SERVICE_URL || "http://35.154.178.103:3004";
+const PROBLEM_SERVICE_URL = "http://3.111.163.113:3002";
+const EVALUATOR_SERVICE_URL =
+  process.env.EVALUATOR_SERVICE_URL || "http://35.154.178.103:3004";
 
 export async function evaluateSubmission(
   submissionId: string,
