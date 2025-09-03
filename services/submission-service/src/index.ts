@@ -12,12 +12,40 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173", // Vite dev server
+    origin: ["http://localhost:5173", "http://13.201.255.178"], // Allow both dev and production
     methods: ["GET", "POST"],
   },
 });
 
 const PORT = process.env.PORT || 3003;
+
+// Rate limiting middleware
+const rateLimit = (windowMs: number, max: number) => {
+  const requests = new Map();
+  
+  return (req: any, res: any, next: any) => {
+    const ip = req.ip || req.connection.remoteAddress;
+    const now = Date.now();
+    const windowStart = now - windowMs;
+    
+    if (!requests.has(ip)) {
+      requests.set(ip, []);
+    }
+    
+    const userRequests = requests.get(ip).filter((time: number) => time > windowStart);
+    
+    if (userRequests.length >= max) {
+      return res.status(429).json({ 
+        success: false, 
+        message: 'Too many submissions, please try again later' 
+      });
+    }
+    
+    userRequests.push(now);
+    requests.set(ip, userRequests);
+    next();
+  };
+};
 
 // Make io instance available globally
 export { io };
@@ -25,6 +53,7 @@ export { io };
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(rateLimit(15 * 60 * 1000, 50)); // 50 submissions per 15 minutes
 
 // Database connection
 mongoose
