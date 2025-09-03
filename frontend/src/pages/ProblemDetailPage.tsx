@@ -22,7 +22,7 @@ function ProblemDetailPage() {
   const [problem, setProblem] = useState<Problem | null>(null);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [code, setCode] = useState("");
-  const [language, setLanguage] = useState<"javascript" | "cpp">("javascript");
+  const [language, setLanguage] = useState<"cpp">("cpp");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<"problem" | "submissions">(
@@ -292,9 +292,7 @@ function ProblemDetailPage() {
                         <div className="flex items-center gap-4">
                           <StatusBadge status={submission.status} />
                           <span className="text-sm text-gray-600">
-                            {submission.language === "javascript"
-                              ? "JavaScript"
-                              : "C++"}
+                            C++
                           </span>
                           {submission.runtime && (
                             <span className="text-xs text-gray-500 flex items-center gap-1">
@@ -321,27 +319,15 @@ function ProblemDetailPage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 <Code className="w-5 h-5" />
-                Solution
+                Solution (C++)
               </h3>
-              <select
-                value={language}
-                onChange={(e) =>
-                  setLanguage(e.target.value as "javascript" | "cpp")
-                }
-                className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="javascript">JavaScript</option>
-                <option value="cpp">C++</option>
-              </select>
             </div>
 
             <CodeEditor
               value={code}
               onChange={setCode}
               language={language}
-              placeholder={`Write your ${
-                language === "javascript" ? "JavaScript" : "C++"
-              } solution here...`}
+              placeholder="Write your C++ solution here..."
             />
 
             <div className="mt-4 flex justify-end">

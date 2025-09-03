@@ -3,7 +3,7 @@ import React from 'react';
 interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
-  language: 'javascript' | 'cpp';
+  language: 'cpp';
   placeholder?: string;
 }
 
@@ -12,7 +12,7 @@ function CodeEditor({ value, onChange, language, placeholder }: CodeEditorProps)
     <div className="border border-gray-300 rounded-lg overflow-hidden">
       <div className="bg-gray-100 px-4 py-2 border-b border-gray-300">
         <span className="text-sm font-medium text-gray-700">
-          {language === 'javascript' ? 'JavaScript' : 'C++'}
+          C++
         </span>
       </div>
       <textarea

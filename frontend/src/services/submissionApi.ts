@@ -13,7 +13,7 @@ const getAuthHeaders = () => {
 export async function submitSolution(
   problemId: string,
   code: string,
-  language: 'javascript' | 'cpp'
+  language: 'cpp'
 ): Promise<ApiResponse<Submission>> {
   const response = await fetch(`${API_BASE_URL}/api/submissions`, {
     method: 'POST',

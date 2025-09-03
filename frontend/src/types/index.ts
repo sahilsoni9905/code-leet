@@ -39,7 +39,7 @@ export interface Submission {
   userId: string;
   problemId: string;
   code: string;
-  language: 'javascript' | 'cpp';
+  language: 'cpp';
   status: 'pending' | 'accepted' | 'wrong_answer' | 'runtime_error' | 'time_limit_exceeded';
   runtime?: number;
   memory?: number;
