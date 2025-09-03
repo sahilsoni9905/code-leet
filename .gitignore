@@ -25,3 +25,6 @@ dist-ssr
 .env
 docker-compose.yml
 docker-compose.override.yml
+
+# Teaching documentation (local only)
+teach.txt
