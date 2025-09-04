@@ -1,52 +1,68 @@
-import { ApiResponse, Problem } from '../types';
+import { ApiResponse, Problem } from "../types";
 
-// Use relative URL for production (Vercel), full URL for development
+// Use Vercel proxy in production, direct URL in development
 const API_BASE_URL = (import.meta as any).env.PROD 
-  ? "" // Empty string for relative URLs in production
-  : ((import.meta as any).env.VITE_PROBLEM_SERVICE_URL || 'http://3.111.163.113:3002');
+  ? "/api/problems" 
+  : ((import.meta as any).env.VITE_PROBLEM_SERVICE_URL || "http://3.111.163.113:3002");
+
+// Helper function to build API URLs
+const getApiUrl = (endpoint: string) => {
+  if ((import.meta as any).env.PROD) {
+    // In production, the proxy handles the /api/problems prefix
+    return `${API_BASE_URL}${endpoint}`;
+  } else {
+    // In development, we need the full path
+    return `${API_BASE_URL}/api/problems${endpoint}`;
+  }
+};
 
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
   return {
-    'Content-Type': 'application/json',
-    ...(token && { Authorization: `Bearer ${token}` })
+    "Content-Type": "application/json",
+    ...(token && { Authorization: `Bearer ${token}` }),
   };
 };
 
 export async function getProblems(): Promise<ApiResponse<Problem[]>> {
-  const response = await fetch(`${API_BASE_URL}/api/problems`);
+  const response = await fetch(getApiUrl(""));
   return response.json();
 }
 
 export async function getProblem(id: string): Promise<ApiResponse<Problem>> {
-  const response = await fetch(`${API_BASE_URL}/api/problems/${id}`);
+  const response = await fetch(getApiUrl(`/${id}`));
   return response.json();
 }
 
-export async function createProblem(problemData: Partial<Problem>): Promise<ApiResponse<Problem>> {
-  const response = await fetch(`${API_BASE_URL}/api/problems`, {
-    method: 'POST',
+export async function createProblem(
+  problemData: Partial<Problem>
+): Promise<ApiResponse<Problem>> {
+  const response = await fetch(getApiUrl(""), {
+    method: "POST",
     headers: getAuthHeaders(),
-    body: JSON.stringify(problemData)
+    body: JSON.stringify(problemData),
   });
 
   return response.json();
 }
 
-export async function updateProblem(id: string, problemData: Partial<Problem>): Promise<ApiResponse<Problem>> {
-  const response = await fetch(`${API_BASE_URL}/api/problems/${id}`, {
-    method: 'PUT',
+export async function updateProblem(
+  id: string,
+  problemData: Partial<Problem>
+): Promise<ApiResponse<Problem>> {
+  const response = await fetch(getApiUrl(`/${id}`), {
+    method: "PUT",
     headers: getAuthHeaders(),
-    body: JSON.stringify(problemData)
+    body: JSON.stringify(problemData),
   });
 
   return response.json();
 }
 
 export async function deleteProblem(id: string): Promise<ApiResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/problems/${id}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders()
+  const response = await fetch(getApiUrl(`/${id}`), {
+    method: "DELETE",
+    headers: getAuthHeaders(),
   });
 
   return response.json();

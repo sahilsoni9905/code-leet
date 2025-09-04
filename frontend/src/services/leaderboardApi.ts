@@ -1,9 +1,20 @@
 import { ApiResponse } from "../types";
 
-// Use relative URL for production (Vercel), full URL for development
+// Use Vercel proxy in production, direct URL in development
 const API_BASE_URL = (import.meta as any).env.PROD 
-  ? "" // Empty string for relative URLs in production
+  ? "/api/auth" 
   : ((import.meta as any).env.VITE_USER_SERVICE_URL || "http://13.201.255.178:3001");
+
+// Helper function to build API URLs
+const getApiUrl = (endpoint: string) => {
+  if ((import.meta as any).env.PROD) {
+    // In production, the proxy handles the /api/auth prefix
+    return `${API_BASE_URL}${endpoint}`;
+  } else {
+    // In development, we need the full path
+    return `${API_BASE_URL}/api/auth${endpoint}`;
+  }
+};
 
 export interface LeaderboardUser {
   _id: string;
@@ -19,7 +30,7 @@ export interface LeaderboardUser {
 export async function getLeaderboard(): Promise<
   ApiResponse<LeaderboardUser[]>
 > {
-  const response = await fetch(`${API_BASE_URL}/api/auth/leaderboard`, {
+  const response = await fetch(getApiUrl("/leaderboard"), {
     headers: {
       "Content-Type": "application/json",
     },

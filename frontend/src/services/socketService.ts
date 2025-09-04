@@ -9,12 +9,13 @@ class SocketService {
       this.disconnect();
     }
 
-    const SUBMISSION_SERVICE_URL =
-      (import.meta as any).env.VITE_SUBMISSION_SERVICE_URL ||
-      "http://13.203.186.121:3003";
+    const SUBMISSION_SERVICE_URL = (import.meta as any).env.PROD
+      ? "wss://13.203.186.121:3003" // Use WSS for production
+      : ((import.meta as any).env.VITE_SUBMISSION_SERVICE_URL || "http://13.203.186.121:3003");
 
     this.socket = io(SUBMISSION_SERVICE_URL, {
       transports: ["websocket", "polling"],
+      secure: (import.meta as any).env.PROD, // Enable secure connection in production
     });
 
     this.socket.on("connect", () => {
