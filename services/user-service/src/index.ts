@@ -38,7 +38,16 @@ const rateLimit = (windowMs: number, max: number) => {
 };
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:5173', // Development
+    'https://your-vercel-app.vercel.app', // Replace with your actual Vercel URL
+    /vercel\.app$/ // Allow any Vercel domain
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(rateLimit(15 * 60 * 1000, 100)); // 100 requests per 15 minutes
 
