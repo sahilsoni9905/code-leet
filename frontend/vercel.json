@@ -13,6 +13,10 @@
     {
       "source": "/api/submissions/:path*",
       "destination": "http://13.203.186.121:3003/api/submissions/:path*"
+    },
+    {
+      "source": "/api/leaderboard/:path*",
+      "destination": "http://13.201.255.178:3001/api/leaderboard/:path*"
     }
   ],
   "headers": [
