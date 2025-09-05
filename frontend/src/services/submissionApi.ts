@@ -27,7 +27,7 @@ export async function submitSolution(
   code: string,
   language: 'cpp'
 ): Promise<ApiResponse<Submission>> {
-  const response = await fetch(`${API_BASE_URL}/api/submissions`, {
+  const response = await fetch(getApiUrl(''), {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ problemId, code, language }),
@@ -39,7 +39,7 @@ export async function submitSolution(
 export async function getUserSubmissions(
   userId: string
 ): Promise<ApiResponse<Submission[]>> {
-  const response = await fetch(`${API_BASE_URL}/api/submissions/user/${userId}`, {
+  const response = await fetch(getApiUrl(`/user/${userId}`), {
     headers: getAuthHeaders(),
   });
 
@@ -49,7 +49,7 @@ export async function getUserSubmissions(
 export async function getSubmission(
   id: string
 ): Promise<ApiResponse<Submission>> {
-  const response = await fetch(`${API_BASE_URL}/api/submissions/${id}`, {
+  const response = await fetch(getApiUrl(`/${id}`), {
     headers: getAuthHeaders(),
   });
 
@@ -59,7 +59,7 @@ export async function getSubmission(
 export async function getProblemSubmissions(
   problemId: string
 ): Promise<ApiResponse<Submission[]>> {
-  const response = await fetch(`${API_BASE_URL}/api/submissions/problem/${problemId}`, {
+  const response = await fetch(getApiUrl(`/problem/${problemId}`), {
     headers: getAuthHeaders(),
   });
 

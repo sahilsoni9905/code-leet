@@ -23,19 +23,19 @@ const getAuthHeaders = () => {
 };
 
 export async function getProblems(): Promise<ApiResponse<Problem[]>> {
-  const response = await fetch(`${API_BASE_URL}/api/problems`);
+  const response = await fetch(getApiUrl(''));
   return response.json();
 }
 
 export async function getProblem(id: string): Promise<ApiResponse<Problem>> {
-  const response = await fetch(`${API_BASE_URL}/api/problems/${id}`);
+  const response = await fetch(getApiUrl(`/${id}`));
   return response.json();
 }
 
 export async function createProblem(
   problemData: Partial<Problem>
 ): Promise<ApiResponse<Problem>> {
-  const response = await fetch(`${API_BASE_URL}/api/problems`, {
+  const response = await fetch(getApiUrl(''), {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(problemData),
@@ -48,7 +48,7 @@ export async function updateProblem(
   id: string,
   problemData: Partial<Problem>
 ): Promise<ApiResponse<Problem>> {
-  const response = await fetch(`${API_BASE_URL}/api/problems/${id}`, {
+  const response = await fetch(getApiUrl(`/${id}`), {
     method: "PUT",
     headers: getAuthHeaders(),
     body: JSON.stringify(problemData),
@@ -58,7 +58,7 @@ export async function updateProblem(
 }
 
 export async function deleteProblem(id: string): Promise<ApiResponse<void>> {
-  const response = await fetch(`${API_BASE_URL}/api/problems/${id}`, {
+  const response = await fetch(getApiUrl(`/${id}`), {
     method: "DELETE",
     headers: getAuthHeaders(),
   });
