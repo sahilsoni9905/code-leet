@@ -1,18 +1,18 @@
 import { ApiResponse, Submission } from "../types";
 
-// Use Vercel proxy in production, direct URL in development
-const API_BASE_URL = (import.meta as any).env.PROD 
-  ? "/api/submissions" 
+// Use Vercel rewrites in production, direct URL in development
+const API_BASE_URL = (import.meta as any).env.PROD
+  ? "" // Empty string for rewrites
   : ((import.meta as any).env.VITE_SUBMISSION_SERVICE_URL || 'http://13.203.186.121:3003');
 
 // Helper function to build API URLs
 const getApiUrl = (endpoint: string) => {
   if ((import.meta as any).env.PROD) {
-    // In production, use the proxy endpoint
-    return `${API_BASE_URL}${endpoint}`;
+    // In production, use rewrites - full path
+    return `/api/submissions${endpoint}`;
   } else {
     // In development, use the full backend URL
-    return `${(import.meta as any).env.VITE_SUBMISSION_SERVICE_URL || 'http://13.203.186.121:3003'}/api/submissions${endpoint}`;
+    return `${API_BASE_URL}/api/submissions${endpoint}`;
   }
 };
 
