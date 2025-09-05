@@ -30,7 +30,7 @@ export interface LeaderboardUser {
 export async function getLeaderboard(): Promise<
   ApiResponse<LeaderboardUser[]>
 > {
-  const response = await fetch(getApiUrl("/leaderboard"), {
+  const response = await fetch(`${API_BASE_URL}/api/leaderboard`, {
     headers: {
       "Content-Type": "application/json",
     },

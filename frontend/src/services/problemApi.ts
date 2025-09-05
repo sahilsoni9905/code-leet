@@ -1,9 +1,7 @@
 import { ApiResponse, Problem } from "../types";
 
 // Use Vercel rewrites in production, direct URL in development
-const API_BASE_URL = (import.meta as any).env.PROD
-  ? "" // Empty string for rewrites
-  : ((import.meta as any).env.VITE_PROBLEM_SERVICE_URL || 'http://3.111.163.113:3002');
+const API_BASE_URL = (import.meta as any).env.VITE_PROBLEM_SERVICE_URL || 'http://3.111.163.113:3002';
 
 // Helper function to build API URLs
 const getApiUrl = (endpoint: string) => {
@@ -25,19 +23,19 @@ const getAuthHeaders = () => {
 };
 
 export async function getProblems(): Promise<ApiResponse<Problem[]>> {
-  const response = await fetch(getApiUrl(""));
+  const response = await fetch(`${API_BASE_URL}/api/problems`);
   return response.json();
 }
 
 export async function getProblem(id: string): Promise<ApiResponse<Problem>> {
-  const response = await fetch(getApiUrl(`/${id}`));
+  const response = await fetch(`${API_BASE_URL}/api/problems/${id}`);
   return response.json();
 }
 
 export async function createProblem(
   problemData: Partial<Problem>
 ): Promise<ApiResponse<Problem>> {
-  const response = await fetch(getApiUrl(""), {
+  const response = await fetch(`${API_BASE_URL}/api/problems`, {
     method: "POST",
     headers: getAuthHeaders(),
     body: JSON.stringify(problemData),
@@ -50,7 +48,7 @@ export async function updateProblem(
   id: string,
   problemData: Partial<Problem>
 ): Promise<ApiResponse<Problem>> {
-  const response = await fetch(getApiUrl(`/${id}`), {
+  const response = await fetch(`${API_BASE_URL}/api/problems/${id}`, {
     method: "PUT",
     headers: getAuthHeaders(),
     body: JSON.stringify(problemData),
@@ -59,8 +57,8 @@ export async function updateProblem(
   return response.json();
 }
 
-export async function deleteProblem(id: string): Promise<ApiResponse> {
-  const response = await fetch(getApiUrl(`/${id}`), {
+export async function deleteProblem(id: string): Promise<ApiResponse<void>> {
+  const response = await fetch(`${API_BASE_URL}/api/problems/${id}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
   });

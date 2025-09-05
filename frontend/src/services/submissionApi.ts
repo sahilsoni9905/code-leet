@@ -1,9 +1,7 @@
 import { ApiResponse, Submission } from "../types";
 
 // Use Vercel rewrites in production, direct URL in development
-const API_BASE_URL = (import.meta as any).env.PROD
-  ? "" // Empty string for rewrites
-  : ((import.meta as any).env.VITE_SUBMISSION_SERVICE_URL || 'http://13.203.186.121:3003');
+const API_BASE_URL = (import.meta as any).env.VITE_SUBMISSION_SERVICE_URL || 'http://13.203.186.121:3003';
 
 // Helper function to build API URLs
 const getApiUrl = (endpoint: string) => {
@@ -29,7 +27,7 @@ export async function submitSolution(
   code: string,
   language: 'cpp'
 ): Promise<ApiResponse<Submission>> {
-  const response = await fetch(getApiUrl(""), {
+  const response = await fetch(`${API_BASE_URL}/api/submissions`, {
     method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ problemId, code, language }),
@@ -41,7 +39,7 @@ export async function submitSolution(
 export async function getUserSubmissions(
   userId: string
 ): Promise<ApiResponse<Submission[]>> {
-  const response = await fetch(getApiUrl(`/user/${userId}`), {
+  const response = await fetch(`${API_BASE_URL}/api/submissions/user/${userId}`, {
     headers: getAuthHeaders(),
   });
 
@@ -51,7 +49,7 @@ export async function getUserSubmissions(
 export async function getSubmission(
   id: string
 ): Promise<ApiResponse<Submission>> {
-  const response = await fetch(getApiUrl(`/${id}`), {
+  const response = await fetch(`${API_BASE_URL}/api/submissions/${id}`, {
     headers: getAuthHeaders(),
   });
 
@@ -61,7 +59,7 @@ export async function getSubmission(
 export async function getProblemSubmissions(
   problemId: string
 ): Promise<ApiResponse<Submission[]>> {
-  const response = await fetch(getApiUrl(`/problem/${problemId}`), {
+  const response = await fetch(`${API_BASE_URL}/api/submissions/problem/${problemId}`, {
     headers: getAuthHeaders(),
   });
 
