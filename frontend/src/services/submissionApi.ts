@@ -3,34 +3,34 @@ import { ApiResponse, Submission } from "../types";
 // Use Vercel proxy in production, direct URL in development
 const API_BASE_URL = (import.meta as any).env.PROD 
   ? "/api/submissions" 
-  : ((import.meta as any).env.VITE_SUBMISSION_SERVICE_URL || "http://13.203.186.121:3003");
+  : ((import.meta as any).env.VITE_SUBMISSION_SERVICE_URL || 'http://13.203.186.121:3003');
 
 // Helper function to build API URLs
 const getApiUrl = (endpoint: string) => {
   if ((import.meta as any).env.PROD) {
-    // In production, the proxy handles the /api/submissions prefix
+    // In production, use the proxy endpoint
     return `${API_BASE_URL}${endpoint}`;
   } else {
-    // In development, we need the full path
-    return `${API_BASE_URL}/api/submissions${endpoint}`;
+    // In development, use the full backend URL
+    return `${(import.meta as any).env.VITE_SUBMISSION_SERVICE_URL || 'http://13.203.186.121:3003'}/api/submissions${endpoint}`;
   }
 };
 
 const getAuthHeaders = () => {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem('token');
   return {
-    "Content-Type": "application/json",
-    ...(token && { Authorization: `Bearer ${token}` }),
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` })
   };
 };
 
 export async function submitSolution(
   problemId: string,
   code: string,
-  language: "cpp"
+  language: 'cpp'
 ): Promise<ApiResponse<Submission>> {
   const response = await fetch(getApiUrl(""), {
-    method: "POST",
+    method: 'POST',
     headers: getAuthHeaders(),
     body: JSON.stringify({ problemId, code, language }),
   });

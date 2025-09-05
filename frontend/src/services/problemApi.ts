@@ -3,24 +3,24 @@ import { ApiResponse, Problem } from "../types";
 // Use Vercel proxy in production, direct URL in development
 const API_BASE_URL = (import.meta as any).env.PROD 
   ? "/api/problems" 
-  : ((import.meta as any).env.VITE_PROBLEM_SERVICE_URL || "http://3.111.163.113:3002");
+  : ((import.meta as any).env.VITE_PROBLEM_SERVICE_URL || 'http://3.111.163.113:3002');
 
 // Helper function to build API URLs
 const getApiUrl = (endpoint: string) => {
   if ((import.meta as any).env.PROD) {
-    // In production, the proxy handles the /api/problems prefix
+    // In production, use the proxy endpoint
     return `${API_BASE_URL}${endpoint}`;
   } else {
-    // In development, we need the full path
-    return `${API_BASE_URL}/api/problems${endpoint}`;
+    // In development, use the full backend URL
+    return `${(import.meta as any).env.VITE_PROBLEM_SERVICE_URL || 'http://3.111.163.113:3002'}/api/problems${endpoint}`;
   }
 };
 
 const getAuthHeaders = () => {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem('token');
   return {
-    "Content-Type": "application/json",
-    ...(token && { Authorization: `Bearer ${token}` }),
+    'Content-Type': 'application/json',
+    ...(token && { Authorization: `Bearer ${token}` })
   };
 };
 
