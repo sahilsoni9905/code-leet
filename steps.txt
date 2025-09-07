@@ -1,0 +1,313 @@
+### Step-by-Step Guide to Enable HTTPS for Backend Services on EC2
+
+This guide assumes you have your 4 services (evaluator-service, problem-service, submission-service, user-service) running on a single EC2 instance using Docker Compose, as per our previous setup. The services are exposed on different ports (e.g., 3001, 3002, 3003, 3004 based on typical configurations). Your frontend is hosted on Vercel (HTTPS), and you need the backend to support HTTPS to avoid mixed content issues.
+
+**Prerequisites:**
+- EC2 instance running (e.g., t2.micro or larger).
+- Domain name (e.g., api.yourdomain.com) pointing to your EC2 instance's public IP via DNS (Route 53 if using AWS).
+- SSH access to EC2 instance.
+- Docker and Docker Compose installed (from previous setup).
+- Basic knowledge of Linux commands.
+
+#### Step 1: Update Security Group
+1. Go to AWS EC2 Console > Security Groups.
+2. Select the security group attached to your EC2 instance.
+3. Add inbound rules:
+   - Type: HTTPS, Protocol: TCP, Port Range: 443, Source: 0.0.0.0/0 (or restrict to Vercel's IP ranges if known).
+   - Ensure HTTP (port 80) is open for Let's Encrypt challenges.
+4. Save the rules.
+
+#### Step 2: Install Nginx on EC2
+1. SSH into your EC2 instance: `ssh -i your-key.pem ec2-user@your-ec2-public-ip`
+2. Update packages: `sudo yum update -y` (for Amazon Linux 2) or `sudo apt update && sudo apt upgrade -y` (for Ubuntu).
+3. Install Nginx:
+   - Amazon Linux: `sudo amazon-linux-extras install nginx1 -y` then `sudo systemctl start nginx` and `sudo systemctl enable nginx`
+   - Ubuntu: `sudo apt install nginx -y` then `sudo systemctl start nginx` and `sudo systemctl enable nginx`
+4. Verify Nginx is running: `sudo systemctl status nginx`
+
+#### Step 3: Obtain SSL Certificate with Let's Encrypt
+1. Install Certbot:
+   - Amazon Linux: `sudo yum install certbot python3-certbot-nginx -y`
+   - Ubuntu: `sudo apt install certbot python3-certbot-nginx -y`
+2. Run Certbot to get certificate (replace `api.yourdomain.com` with your actual domain):
+   ```
+   sudo certbot --nginx -d api.yourdomain.com
+   ```
+   - Follow prompts: Enter email, agree to terms.
+   - Choose to redirect HTTP to HTTPS (option 2).
+3. Certbot will automatically update Nginx config and obtain certificate.
+4. Test renewal: `sudo certbot renew --dry-run`
+5. Certificates are stored in `/etc/letsencrypt/live/api.yourdomain.com/`
+
+#### Step 4: Configure Nginx as Reverse Proxy
+1. Edit Nginx config: `sudo nano /etc/nginx/sites-available/default` (or `/etc/nginx/nginx.conf` depending on setup).
+2. Replace the server block with something like this (adjust ports based on your services):
+
+   ```
+   server {
+       listen 80;
+       server_name api.yourdomain.com;
+       return 301 https://$server_name$request_uri;
+   }
+
+   server {
+       listen 443 ssl http2;
+       server_name api.yourdomain.com;
+
+       ssl_certificate /etc/letsencrypt/live/api.yourdomain.com/fullchain.pem;
+       ssl_certificate_key /etc/letsencrypt/live/api.yourdomain.com/privkey.pem;
+       ssl_protocols TLSv1.2 TLSv1.3;
+       ssl_ciphers HIGH:!aNULL:!MD5;
+
+       # Proxy to user-service (assuming port 3001)
+       location /auth/ {
+           proxy_pass http://localhost:3001;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+
+       # Proxy to problem-service (assuming port 3002)
+       location /problems/ {
+           proxy_pass http://localhost:3002;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+
+       # Proxy to submission-service (assuming port 3003)
+       location /submissions/ {
+           proxy_pass http://localhost:3003;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+
+       # Proxy to evaluator-service (assuming port 3004)
+       location /evaluate/ {
+           proxy_pass http://localhost:3004;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+   }
+   ```
+
+3. Test config: `sudo nginx -t`
+4. Reload Nginx: `sudo systemctl reload nginx`
+
+#### Step 5: Update Docker Compose (if needed)
+- If your services are behind Docker networks, ensure Nginx can access them.
+- In docker-compose.yml, you might need to expose ports or use host networking.
+- Example: Add `network_mode: host` to services if using host ports.
+
+#### Step 6: Update Frontend API Calls
+1. In your frontend (Vercel), update API base URLs to use HTTPS:
+   - Change `http://your-ec2-ip:port` to `https://api.yourdomain.com`
+   - Update in `src/config/api.ts` or wherever API endpoints are defined.
+2. Redeploy frontend on Vercel.
+
+#### Step 7: Test and Monitor
+1. Test each endpoint: `curl https://api.yourdomain.com/auth/login`
+2. Check logs: `sudo tail -f /var/log/nginx/error.log`
+3. Monitor certificate expiry: `sudo certbot certificates`
+4. Set up auto-renewal: `sudo crontab -e` and add `0 12 * * * /usr/bin/certbot renew --quiet`
+
+#### Troubleshooting Tips
+- If CORS issues: Add CORS headers in Nginx or service code.
+- If services don't respond: Ensure Docker containers are running and ports match.
+- Firewall: `sudo ufw allow 443` (if using UFW).
+- For production: Consider using AWS ALB with ACM for managed certificates.
+
+This setup uses Nginx as a reverse proxy to handle HTTPS, forwarding requests to your internal services. If you encounter issues, provide error logs for further assistance.
+
+#### Alternative Method: Using AWS Application Load Balancer (ALB) - No Backend Changes Required
+
+If you're hesitant to modify your EC2 instance directly, you can use AWS's managed Application Load Balancer (ALB) to handle HTTPS without touching your backend services. This keeps your Docker setup intact.
+
+**Prerequisites:**
+- AWS account with EC2 instance.
+- Domain name (e.g., api.yourdomain.com) managed via Route 53.
+- Services running on EC2 with ports exposed (e.g., 3001-3004).
+
+##### Step 1: Request SSL Certificate via AWS Certificate Manager (ACM)
+1. Go to AWS ACM Console.
+2. Click "Request a certificate" > "Request a public certificate".
+3. Enter your domain (e.g., api.yourdomain.com).
+4. Choose DNS validation.
+5. Add the CNAME record to your Route 53 hosted zone.
+6. Wait for certificate to be issued (can take 30 minutes).
+
+##### Step 2: Create Target Groups
+1. Go to EC2 Console > Load Balancers > Target Groups.
+2. Create 4 target groups (one per service):
+   - Name: e.g., user-service-tg
+   - Target type: Instance
+   - Protocol: HTTP, Port: 3001 (adjust per service)
+   - VPC: Same as your EC2 instance.
+   - Health check: /health or appropriate endpoint.
+3. Register your EC2 instance as the target for each group.
+
+##### Step 3: Create Application Load Balancer
+1. Go to EC2 Console > Load Balancers.
+2. Click "Create Load Balancer" > Application Load Balancer.
+3. Basic config:
+   - Name: e.g., backend-alb
+   - Scheme: Internet-facing
+   - IP address type: IPv4
+4. Network mapping: Select your VPC and subnets (at least 2 public subnets).
+5. Security groups: Create new or select existing allowing HTTP/HTTPS.
+6. Listeners and routing:
+   - Add listener: HTTPS:443, select your ACM certificate.
+   - Add rules for each path:
+     - If path is /auth/*, forward to user-service-tg
+     - If path is /problems/*, forward to problem-service-tg
+     - If path is /submissions/*, forward to submission-service-tg
+     - If path is /evaluate/*, forward to evaluator-service-tg
+7. Create the ALB.
+
+##### Step 4: Update DNS
+1. In Route 53, create/update A record for api.yourdomain.com pointing to the ALB's DNS name (alias record).
+
+##### Step 5: Update Security Group for EC2
+1. Allow traffic from ALB security group to your instance ports (3001-3004).
+2. No need to open 443 directly on EC2.
+
+##### Step 6: Update Frontend
+1. Change API base URL to https://api.yourdomain.com
+2. Redeploy on Vercel.
+
+##### Step 7: Test
+1. Access https://api.yourdomain.com/auth/login
+2. Check ALB logs in CloudWatch for issues.
+
+**Advantages:**
+- Fully managed by AWS.
+- No changes to your EC2 instance or Docker setup.
+- Automatic scaling and health checks.
+
+**Costs:** ALB costs ~$0.0225/hour + data transfer. Minimal for small setups.
+
+This method is safer as it doesn't require SSH access or backend modifications. If you prefer this, follow these steps instead of the Nginx method.
+
+#### Detailed Alternative Method: Using AWS ALB (Step-by-Step for Beginners)
+
+This method uses AWS's Application Load Balancer to add HTTPS without touching your Ubuntu EC2 instance. We'll cover everything from buying a domain to testing. Assume you have an AWS account (if not, sign up at aws.amazon.com).
+
+**Note:** This is all done via AWS web console—no need to SSH into your Ubuntu machine.
+
+##### Step 1: Buy a Domain Name
+1. Go to a domain registrar like GoDaddy (godaddy.com), Namecheap (namecheap.com), or AWS Route 53.
+2. Search for a domain (e.g., myapi.com or api.myproject.com).
+3. Choose a .com or .net domain (costs ~$10-15/year).
+4. Complete purchase: Provide contact info, pay with credit card.
+5. If using Route 53: Go to AWS Console > Route 53 > Registered Domains > Register Domain.
+   - Search and buy directly in AWS (easier integration).
+
+##### Step 2: Set Up DNS with Route 53 (If Not Already Done)
+1. In AWS Console, go to Route 53.
+2. If you bought domain elsewhere:
+   - Click "Hosted Zones" > "Create Hosted Zone".
+   - Enter your domain name (e.g., myapi.com).
+   - Note the NS records (e.g., ns-123.awsdns-45.com).
+   - Go to your registrar's site, update nameservers to these AWS NS records.
+3. If bought via Route 53, it's already set up.
+
+##### Step 3: Request SSL Certificate via ACM
+1. In AWS Console, search for "Certificate Manager" (ACM).
+2. Click "Request a certificate" > "Request a public certificate".
+3. Domain name: Enter your domain (e.g., api.myproject.com). Click "Add another name" if needed.
+4. Validation method: Choose "DNS validation" (easier).
+5. Click "Request".
+6. For validation: Click on the certificate > "Create records in Route 53".
+   - This adds a CNAME record automatically to your hosted zone.
+7. Wait 5-10 minutes for certificate status to change to "Issued". Refresh the page.
+
+##### Step 4: Create Target Groups for Each Service
+1. In AWS Console, go to EC2 > Load Balancers > Target Groups (left sidebar).
+2. Click "Create target group".
+3. Basic config:
+   - Choose target type: "Instances" (since your services are on one EC2).
+   - Target group name: e.g., "user-service-tg"
+   - Protocol: HTTP
+   - Port: 3001 (for user-service; adjust for others)
+   - VPC: Select the VPC where your EC2 is running (check EC2 > Instances > your instance > VPC).
+4. Health checks:
+   - Protocol: HTTP
+   - Path: / (or /health if your service has it)
+   - Port: Traffic port
+5. Click "Next".
+6. Register targets: Select your EC2 instance, click "Include as pending below", then "Create target group".
+7. Repeat for other services:
+   - problem-service-tg: Port 3002
+   - submission-service-tg: Port 3003
+   - evaluator-service-tg: Port 3004
+
+##### Step 5: Create the Application Load Balancer
+1. In AWS Console, go to EC2 > Load Balancers.
+2. Click "Create Load Balancer" > "Application Load Balancer".
+3. Basic config:
+   - Load balancer name: e.g., "backend-alb"
+   - Scheme: "Internet-facing" (public)
+   - IP address type: IPv4
+4. Network mapping:
+   - VPC: Same as your EC2.
+   - Mappings: Select at least 2 Availability Zones (AZs) and subnets (public ones).
+5. Security groups:
+   - Create a new security group or select existing.
+   - Allow inbound: HTTPS on 443 from 0.0.0.0/0.
+6. Listeners and routing:
+   - Default action: Delete the default (we'll add custom rules).
+   - Click "Add listener": Protocol HTTPS, Port 443, Default SSL certificate: Select your ACM certificate.
+7. Now, add rules for routing:
+   - Click on the listener (HTTPS:443) > "View/edit rules".
+   - Delete the default rule.
+   - Click "Add rule":
+     - IF: Path is /auth/* THEN Forward to user-service-tg
+     - Click "Add rule" again for /problems/* -> problem-service-tg
+     - /submissions/* -> submission-service-tg
+     - /evaluate/* -> evaluator-service-tg
+   - For any other paths, you can add a default rule to forward to one group or return 404.
+8. Click "Create load balancer". Wait 5-10 minutes for it to be active.
+
+##### Step 6: Update DNS to Point to ALB
+1. In Route 53 > Hosted Zones > Your domain.
+2. Click "Create record".
+3. Record name: e.g., "api" (for api.myproject.com)
+4. Record type: A
+5. Alias: Yes
+6. Route traffic to: Alias to Application Load Balancer > Select your region > Choose your ALB.
+7. Click "Create records".
+
+##### Step 7: Update EC2 Security Group
+1. In EC2 Console > Security Groups.
+2. Select the security group of your EC2 instance.
+3. Add inbound rules:
+   - Type: Custom TCP, Port range: 3001-3004, Source: Select the ALB's security group (or sg-xxxxx).
+4. This allows ALB to reach your services without opening ports to the internet.
+
+##### Step 8: Update Frontend Code
+1. Open your frontend project (locally or in editor).
+2. Find where API URLs are defined (e.g., src/config/api.ts).
+3. Change base URL from http://your-ec2-ip:port to https://api.yourdomain.com
+4. Example: const API_BASE = 'https://api.myproject.com';
+5. Commit and push changes.
+6. Redeploy on Vercel.
+
+##### Step 9: Test Everything
+1. Open browser, go to https://api.myproject.com/auth/login (adjust paths).
+2. Check if it responds (you might need to test with Postman or curl).
+3. If errors: Check ALB > Listeners > Rules, and CloudWatch logs for ALB.
+4. Test health checks: Target Groups > Your TG > Targets > Status should be "healthy".
+
+##### Troubleshooting
+- Certificate not issuing: Check DNS records in Route 53.
+- ALB not routing: Verify paths in rules match your API endpoints.
+- 502 errors: Ensure services are running and ports match.
+- Costs: ALB ~$16/month + data transfer (~$0.09/GB).
+
+This method is fully managed—no Ubuntu commands needed. If stuck, share screenshots of errors.
