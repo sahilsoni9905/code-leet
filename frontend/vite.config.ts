@@ -8,17 +8,17 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api/auth': {
-        target: 'http://13.201.255.178:3001',
+        target: 'https://13.201.255.178',
         changeOrigin: true,
         secure: false,
       },
       '/api/problems': {
-        target: 'http://3.111.163.113:3002',
+        target: 'https://13.201.255.178',
         changeOrigin: true,
         secure: false,
       },
       '/api/submissions': {
-        target: 'http://13.203.186.121:3003',
+        target: 'https://13.201.255.178',
         changeOrigin: true,
         secure: false,
       },

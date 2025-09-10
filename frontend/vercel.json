@@ -4,19 +4,19 @@
   "rewrites": [
     {
       "source": "/api/auth/:path*",
-      "destination": "http://13.201.255.178:3001/api/auth/:path*"
+      "destination": "https://13.201.255.178/api/auth/:path*"
     },
     {
       "source": "/api/problems/:path*",
-      "destination": "http://3.111.163.113:3002/api/problems/:path*"
+      "destination": "https://13.201.255.178/api/problems/:path*"
     },
     {
       "source": "/api/submissions/:path*",
-      "destination": "http://13.203.186.121:3003/api/submissions/:path*"
+      "destination": "https://13.201.255.178/api/submissions/:path*"
     },
     {
       "source": "/api/leaderboard/:path*",
-      "destination": "http://13.201.255.178:3001/api/leaderboard/:path*"
+      "destination": "https://13.201.255.178/api/leaderboard/:path*"
     }
   ],
   "headers": [

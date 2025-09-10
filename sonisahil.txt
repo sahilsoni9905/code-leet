@@ -1,0 +1,413 @@
+# COMPLETE SETUP GUIDE FOR CODE LEET PLATFORM ON FRESH EC2
+# This guide uses your existing MongoDB Atlas and environment configuration
+# Follow these steps in exact order for guaranteed working setup
+
+# STEP 1: COMPLETE MACHINE RESET (Fresh Start)
+sudo rm -rf ~/code-leet
+sudo pm2 delete all
+sudo pm2 kill
+sudo systemctl stop nginx 2>/dev/null || true
+sudo systemctl disable nginx 2>/dev/null || true
+sudo ufw --force reset
+sudo ufw enable
+
+# STEP 2: INSTALL DEPENDENCIES (No MongoDB needed - using Atlas)
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Node.js 18+
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Install PM2
+sudo npm install -g pm2
+
+# STEP 3: CLONE PROJECT (Already has .env files configured)
+cd ~
+git clone https://github.com/sonisahil4k/code-leet.git
+cd code-leet
+
+# Your project already has these .env configurations:
+# - MongoDB Atlas URI: mongodb+srv://sonisahil9905:UEHHUSAUB6PIHePN@cluster0.ji9ju7m.mongodb.net/algocode-submissions  
+# - JWT Secret: JWTSecretKey
+# - All service ports configured (3001-3004)
+
+# STEP 4: CREATE MISSING MIDDLEWARE (Critical - Why Services Were Crashing)
+# The submission and problem services were missing auth middleware
+
+# 4.1) Create submission-service auth middleware
+cd services/submission-service/src
+mkdir -p middleware
+cat > middleware/auth.ts << 'EOF'
+import jwt from 'jsonwebtoken';
+import { Request, Response, NextFunction } from 'express';
+
+interface UserPayload {
+    id: string;
+}
+
+declare global {
+    namespace Express {
+        interface Request {
+            user?: UserPayload;
+        }
+    }
+}
+
+export const authenticateToken = (req: Request, res: Response, next: NextFunction): void => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        res.status(401).json({ error: 'Access token is required' });
+        return;
+    }
+
+    jwt.verify(token, process.env.JWT_SECRET!, (err: any, user: any) => {
+        if (err) {
+            res.status(403).json({ error: 'Invalid or expired token' });
+            return;
+        }
+        req.user = user as UserPayload;
+        next();
+    });
+};
+EOF
+
+# 4.2) Create problem-service auth middleware
+cd ~/code-leet/services/problem-service/src
+mkdir -p middleware
+cat > middleware/auth.ts << 'EOF'
+import jwt from 'jsonwebtoken';
+import { Request, Response, NextFunction } from 'express';
+
+interface UserPayload {
+    id: string;
+    role?: string;
+}
+
+declare global {
+    namespace Express {
+        interface Request {
+            user?: UserPayload;
+        }
+    }
+}
+
+export const authenticateToken = (req: Request, res: Response, next: NextFunction): void => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        res.status(401).json({ error: 'Access token is required' });
+        return;
+    }
+
+    jwt.verify(token, process.env.JWT_SECRET!, (err: any, user: any) => {
+        if (err) {
+            res.status(403).json({ error: 'Invalid or expired token' });
+            return;
+        }
+        req.user = user as UserPayload;
+        next();
+    });
+};
+
+export const requireAdmin = (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user || req.user.role !== 'admin') {
+        res.status(403).json({ error: 'Admin access required' });
+        return;
+    }
+    next();
+};
+EOF
+
+# STEP 5: FIX ES MODULE IMPORTS (Critical Fix)
+# Services were failing because of missing .js extensions in ES module imports
+
+# 5.1) Fix User Service
+cd ~/code-leet/services/user-service/src
+sed -i 's|from "./routes/auth"|from "./routes/auth.js"|g' index.ts
+
+# 5.2) Fix Problem Service  
+cd ~/code-leet/services/problem-service/src
+sed -i 's|from "./routes/problems"|from "./routes/problems.js"|g' index.ts
+cd routes
+sed -i 's|from "../models/Problem"|from "../models/Problem.js"|g' problems.ts
+sed -i 's|from "../middleware/auth"|from "../middleware/auth.js"|g' problems.ts
+
+# 5.3) Fix Submission Service
+cd ~/code-leet/services/submission-service/src
+sed -i 's|from "./routes/submissions"|from "./routes/submissions.js"|g' index.ts
+cd routes
+sed -i 's|from "../models/Submission"|from "../models/Submission.js"|g' submissions.ts
+sed -i 's|from "../middleware/auth"|from "../middleware/auth.js"|g' submissions.ts
+sed -i 's|from "../utils/evaluationClient"|from "../utils/evaluationClient.js"|g' submissions.ts
+
+# 5.4) Fix Evaluator Service
+cd ~/code-leet/services/evaluator-service/src
+sed -i 's|from "./routes/evaluator"|from "./routes/evaluator.js"|g' index.ts
+
+# STEP 6: INSTALL DEPENDENCIES AND BUILD ALL SERVICES
+cd ~/code-leet
+
+# Build each service
+echo "Building user-service..."
+cd services/user-service && npm install && npm run build
+
+echo "Building problem-service..."
+cd ../problem-service && npm install && npm run build  
+
+echo "Building submission-service..."
+cd ../submission-service && npm install && npm run build
+
+echo "Building evaluator-service..."
+cd ../evaluator-service && npm install && npm run build
+
+# STEP 7: CONFIGURE AWS EC2 SECURITY GROUP
+# In AWS Console > EC2 > Security Groups > Your Instance Security Group
+# Add Inbound Rules:
+# - Type: Custom TCP, Port: 3001, Source: Anywhere (0.0.0.0/0) - User Service
+# - Type: Custom TCP, Port: 3002, Source: Anywhere (0.0.0.0/0) - Problem Service  
+# - Type: Custom TCP, Port: 3003, Source: Anywhere (0.0.0.0/0) - Submission Service
+# - Type: Custom TCP, Port: 3004, Source: Anywhere (0.0.0.0/0) - Evaluator Service
+# - Type: HTTP, Port: 80, Source: Anywhere (0.0.0.0/0)
+# - Type: HTTPS, Port: 443, Source: Anywhere (0.0.0.0/0)
+
+# STEP 8: CREATE PM2 ECOSYSTEM FILE
+cd ~/code-leet
+cat > ecosystem.config.js << 'EOF'
+module.exports = {
+  apps: [
+    {
+      name: 'user-service',
+      script: './services/user-service/dist/index.js',
+      cwd: '/home/ubuntu/code-leet/services/user-service',
+      env: {
+        NODE_ENV: 'production'
+      },
+      error_file: './logs/user-service-error.log',
+      out_file: './logs/user-service-out.log',
+      log_file: './logs/user-service.log'
+    },
+    {
+      name: 'problem-service', 
+      script: './services/problem-service/dist/index.js',
+      cwd: '/home/ubuntu/code-leet/services/problem-service',
+      env: {
+        NODE_ENV: 'production'
+      },
+      error_file: './logs/problem-service-error.log',
+      out_file: './logs/problem-service-out.log',
+      log_file: './logs/problem-service.log'
+    },
+    {
+      name: 'submission-service',
+      script: './services/submission-service/dist/index.js', 
+      cwd: '/home/ubuntu/code-leet/services/submission-service',
+      env: {
+        NODE_ENV: 'production'
+      },
+      error_file: './logs/submission-service-error.log',
+      out_file: './logs/submission-service-out.log',
+      log_file: './logs/submission-service.log'
+    },
+    {
+      name: 'evaluator-service',
+      script: './services/evaluator-service/dist/index.js',
+      cwd: '/home/ubuntu/code-leet/services/evaluator-service', 
+      env: {
+        NODE_ENV: 'production'
+      },
+      error_file: './logs/evaluator-service-error.log',
+      out_file: './logs/evaluator-service-out.log', 
+      log_file: './logs/evaluator-service.log'
+    }
+  ]
+};
+EOF
+
+# STEP 9: START SERVICES WITH PM2
+mkdir -p logs
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup
+
+# STEP 10: VERIFY ALL SERVICES ARE RUNNING
+echo "Checking service health..."
+pm2 status
+sleep 5
+
+# Test each service endpoint
+echo "Testing User Service..."
+curl -X GET http://localhost:3001/health || echo "User service not responding"
+
+echo "Testing Problem Service..."  
+curl -X GET http://localhost:3002/health || echo "Problem service not responding"
+
+echo "Testing Submission Service..."
+curl -X GET http://localhost:3003/health || echo "Submission service not responding" 
+
+echo "Testing Evaluator Service..."
+curl -X GET http://localhost:3004/health || echo "Evaluator service not responding"
+
+# Check if ports are bound
+echo "Checking port bindings..."
+netstat -tlnp | grep :300
+
+# STEP 11: TEST HTTP SETUP WORKING
+# At this point all services should be running on HTTP
+# Test with your Vercel frontend pointing to:
+# - User Service: http://13.201.255.178:3001
+# - Problem Service: http://13.201.255.178:3002  
+# - Submission Service: http://13.201.255.178:3003
+# - Evaluator Service: http://13.201.255.178:3004
+
+echo "========================================"
+echo "HTTP SETUP COMPLETE!"  
+echo "All services should be running on ports 3001-3004"
+echo "Using MongoDB Atlas: mongodb+srv://sonisahil9905:...@cluster0.ji9ju7m.mongodb.net/algocode-submissions"
+echo "Test your Vercel frontend now before proceeding to HTTPS"
+echo "========================================"
+
+# STEP 12: HTTPS SETUP (ONLY AFTER HTTP CONFIRMED WORKING)
+# Do NOT proceed unless HTTP is working perfectly
+
+# Install Nginx
+sudo apt install -y nginx
+
+# Install Certbot for SSL
+sudo apt install -y certbot python3-certbot-nginx
+
+# Create Nginx config for reverse proxy
+sudo tee /etc/nginx/sites-available/code-leet << 'EOF'
+server {
+    listen 80;
+    server_name 13.201.255.178;
+
+    # User Service - Auth endpoints
+    location /api/auth {
+        proxy_pass http://localhost:3001/api/auth;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Problem Service  
+    location /api/problems {
+        proxy_pass http://localhost:3002/api/problems;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Submission Service
+    location /api/submissions {
+        proxy_pass http://localhost:3003/api/submissions;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Evaluator Service
+    location /api/evaluate {
+        proxy_pass http://localhost:3004/api/evaluate;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+EOF
+
+# Enable the site
+sudo ln -s /etc/nginx/sites-available/code-leet /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t
+sudo systemctl start nginx
+sudo systemctl enable nginx
+
+# Get SSL certificate (replace with your domain if you have one)
+sudo certbot --nginx -d 13.201.255.178
+
+# STEP 13: UPDATE FRONTEND ENVIRONMENT VARIABLES
+# In your Vercel project, update environment variables:
+# VITE_API_URL=https://13.201.255.178/api
+# 
+# Update your frontend code to use:
+# - Auth endpoints: https://13.201.255.178/api/auth
+# - Problem endpoints: https://13.201.255.178/api/problems
+# - Submission endpoints: https://13.201.255.178/api/submissions  
+# - Evaluator endpoints: https://13.201.255.178/api/evaluate
+
+echo "========================================"
+echo "HTTPS SETUP COMPLETE!"
+echo "Your API is now available at: https://13.201.255.178/api"
+echo "Update your Vercel frontend to use the new HTTPS endpoints"
+echo "========================================"
+
+# TROUBLESHOOTING COMMANDS
+# If something goes wrong, use these commands to debug:
+
+# Check PM2 logs
+# pm2 logs
+# pm2 logs user-service
+# pm2 logs problem-service  
+# pm2 logs submission-service
+# pm2 logs evaluator-service
+
+# Check service status
+# pm2 status
+
+# Check port bindings
+# netstat -tlnp | grep :300
+
+# Check MongoDB Atlas connection
+# node -e "const mongoose = require('mongoose'); mongoose.connect('mongodb+srv://sonisahil9905:UEHHUSAUB6PIHePN@cluster0.ji9ju7m.mongodb.net/algocode-submissions').then(() => console.log('MongoDB Atlas Connected!')).catch(console.error)"
+
+# Check Nginx status  
+# sudo systemctl status nginx
+# sudo nginx -t
+
+# Check SSL certificate
+# sudo certbot certificates
+
+# Restart everything if needed
+# pm2 restart all
+# sudo systemctl restart nginx
+
+# View real-time logs
+# pm2 monit
+
+# Test individual service health
+# curl http://localhost:3001/health
+# curl http://localhost:3002/health
+# curl http://localhost:3003/health  
+# curl http://localhost:3004/health
+
+echo "Setup guide complete!"
+echo "Key differences from before:"
+echo "- Uses your existing MongoDB Atlas (no local MongoDB)"
+echo "- Uses your existing .env files with correct JWT_SECRET"
+echo "- Fixed missing middleware that was causing crashes"
+echo "- Fixed ES module imports with .js extensions"
+echo "Follow steps 1-11 for HTTP, then 12-13 for HTTPS."

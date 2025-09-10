@@ -9,16 +9,10 @@ class SocketService {
       this.disconnect();
     }
 
-    // In production, WebSocket from HTTPS to HTTP won't work
-    // For now, we'll disable WebSocket in production
-    if ((import.meta as any).env.PROD) {
-      console.log("WebSocket disabled in production due to HTTPS->HTTP restrictions");
-      return null;
-    }
-
+    // Using HTTPS through Nginx proxy
     const SUBMISSION_SERVICE_URL =
       (import.meta as any).env.VITE_SUBMISSION_SERVICE_URL ||
-      "http://13.203.186.121:3003";
+      "https://13.201.255.178";
 
     this.socket = io(SUBMISSION_SERVICE_URL, {
       transports: ["websocket", "polling"],

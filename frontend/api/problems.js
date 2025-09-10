@@ -1,4 +1,4 @@
-const PROBLEM_SERVICE_URL = 'http://3.111.163.113:3002';
+const PROBLEM_SERVICE_URL = 'https://13.201.255.178';
 
 export default async function handler(req, res) {
     try {

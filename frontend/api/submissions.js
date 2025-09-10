@@ -1,4 +1,4 @@
-const SUBMISSION_SERVICE_URL = 'http://13.203.186.121:3003';
+const SUBMISSION_SERVICE_URL = 'https://13.201.255.178';
 
 export default async function handler(req, res) {
     try {

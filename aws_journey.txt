@@ -1,0 +1,213 @@
+# AWS JOURNEY - User Service Setup and Troubleshooting
+# Complete step-by-step guide for setting up user service on EC2
+# Date: September 7, 2025
+
+## STEP 1: Initial Setup and Dependencies
+```bash
+# Navigate to user service directory
+cd ~/code-leet/services/user-service
+
+# Check if .env file exists
+ls -la .env
+
+# If .env doesn't exist, create it
+cat > .env << 'EOF'
+MONGODB_URI=mongodb+srv://sonisahil9905:UEHHUSAUB6PIHePN@cluster0.ji9ju7m.mongodb.net/algocode-submissions
+JWT_SECRET=JWTSecretKey
+PORT=3001
+NODE_ENV=production
+EOF
+
+# Install dependencies
+npm install
+
+# Build the service
+npm run build
+```
+
+## STEP 2: First Attempt - ES Module Import Error
+```bash
+# Try to start the service
+pm2 start dist/index.js --name user-service
+
+# Check status
+pm2 status
+
+# Check logs - THIS IS WHERE WE SAW THE FIRST ERROR
+pm2 logs user-service --lines 20
+```
+
+### PROBLEM 1: ES Module Import Error
+**Error Message:**
+```
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/ubuntu/code-leet/services/user-service/dist/routes/auth' imported from /home/ubuntu/code-leet/services/user-service/dist/index.js
+```
+
+**Root Cause:** ES modules require `.js` extensions in import statements, even in TypeScript source files.
+
+**Solution:**
+```bash
+# Stop the failing service
+pm2 stop user-service
+pm2 delete user-service
+
+# Fix the import path in index.ts
+cd ~/code-leet/services/user-service/src
+sed -i 's|from "./routes/auth"|from "./routes/auth.js"|g' index.ts
+
+# Rebuild and restart
+cd ~/code-leet/services/user-service
+npm run build
+pm2 start dist/index.js --name user-service
+```
+
+## STEP 3: Second Attempt - Model Import Error
+```bash
+# Check logs again
+pm2 logs user-service --lines 20
+```
+
+### PROBLEM 2: Model Import Error
+**Error Message:**
+```
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/ubuntu/code-leet/services/user-service/dist/models/User' imported from /home/ubuntu/code-leet/services/user-service/dist/routes/auth.js
+```
+
+**Root Cause:** The routes file also had ES module imports without `.js` extensions.
+
+**Solution:**
+```bash
+# Stop the failing service
+pm2 stop user-service
+pm2 delete user-service
+
+# Fix model imports in routes/auth.ts
+cd ~/code-leet/services/user-service/src/routes
+sed -i 's|from "../models/User"|from "../models/User.js"|g' auth.ts
+sed -i 's|from "../models/Problem"|from "../models/Problem.js"|g' auth.ts
+sed -i 's|from "../models/Submission"|from "../models/Submission.js"|g' auth.ts
+
+# Rebuild and restart
+cd ~/code-leet/services/user-service
+npm run build
+pm2 start dist/index.js --name user-service
+```
+
+## STEP 4: Success! Service Running
+```bash
+# Check final status
+pm2 status
+
+# Check logs - NOW WE SEE SUCCESS MESSAGES
+pm2 logs user-service --lines 30
+
+# Test health endpoint
+curl -s http://localhost:3001/health
+
+# Check if port is listening
+sudo ss -ltnp | grep :3001
+```
+
+### SUCCESS OUTPUT:
+```
+0|user-service  | User Service running on port 3001
+0|user-service  | User Service: Connected to MongoDB
+```
+
+## LESSONS LEARNED
+
+### 1. ES Module Import Rules
+- **Always add `.js` extensions** to relative imports in TypeScript source files
+- This applies to: routes, models, middleware, utils, etc.
+- Example: `from "./routes/auth"` → `from "./routes/auth.js"`
+
+### 2. Common Import Patterns to Fix
+```typescript
+// WRONG (will cause ERR_MODULE_NOT_FOUND)
+import { User } from '../models/User';
+import authRoutes from './routes/auth';
+import { authenticateToken } from '../middleware/auth';
+
+// RIGHT (ES module compatible)
+import { User } from '../models/User.js';
+import authRoutes from './routes/auth.js';
+import { authenticateToken } from '../middleware/auth.js';
+```
+
+### 3. Debugging Steps
+1. **Check PM2 status:** `pm2 status`
+2. **Check logs:** `pm2 logs <service-name> --lines 20`
+3. **Stop failing service:** `pm2 stop <service-name> && pm2 delete <service-name>`
+4. **Fix imports:** Use `sed` commands to add `.js` extensions
+5. **Rebuild:** `npm run build`
+6. **Restart:** `pm2 start dist/index.js --name <service-name>`
+
+### 4. Environment Variables
+- **MongoDB Atlas URI:** Already configured in .env
+- **JWT Secret:** Already configured in .env
+- **Port:** 3001 for user service
+- **NODE_ENV:** production
+
+## WORKING COMMANDS SUMMARY
+
+```bash
+# Complete working sequence for user service
+cd ~/code-leet/services/user-service
+
+# Ensure .env exists
+cat > .env << 'EOF'
+MONGODB_URI=mongodb+srv://sonisahil9905:UEHHUSAUB6PIHePN@cluster0.ji9ju7m.mongodb.net/algocode-submissions
+JWT_SECRET=JWTSecretKey
+PORT=3001
+NODE_ENV=production
+EOF
+
+# Install and build
+npm install
+npm run build
+
+# Fix ES module imports (CRITICAL)
+cd src
+sed -i 's|from "./routes/auth"|from "./routes/auth.js"|g' index.ts
+cd routes
+sed -i 's|from "../models/User"|from "../models/User.js"|g' auth.ts
+sed -i 's|from "../models/Problem"|from "../models/Problem.js"|g' auth.ts
+sed -i 's|from "../models/Submission"|from "../models/Submission.js"|g' auth.ts
+
+# Build and start
+cd ~/code-leet/services/user-service
+npm run build
+pm2 start dist/index.js --name user-service
+
+# Verify
+pm2 status
+pm2 logs user-service --lines 20
+curl -s http://localhost:3001/health
+```
+
+## NEXT STEPS FOR OTHER SERVICES
+
+Apply the same pattern to other services:
+1. **Problem Service** (port 3002)
+2. **Submission Service** (port 3003) - also needs middleware creation
+3. **Evaluator Service** (port 3004)
+
+Each will need:
+- .env file creation
+- ES module import fixes
+- Build and PM2 startup
+
+## TROUBLESHOOTING CHECKLIST
+
+- [ ] PM2 status shows "online"
+- [ ] Logs show "Service running on port XXXX"
+- [ ] Logs show "Connected to MongoDB"
+- [ ] Port is listening: `sudo ss -ltnp | grep :3001`
+- [ ] Health endpoint responds: `curl http://localhost:3001/health`
+- [ ] No ERR_MODULE_NOT_FOUND errors in logs
+
+---
+**Status:** ✅ User Service Working
+**Date:** September 7, 2025
+**MongoDB:** Atlas (no local installation needed)
+**Key Fix:** ES module .js extensions in all imports
