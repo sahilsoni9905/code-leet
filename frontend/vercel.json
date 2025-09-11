@@ -1,41 +1,4 @@
 {
   "buildCommand": "npm run build",
-  "installCommand": "npm install",
-  "rewrites": [
-    {
-      "source": "/api/auth/:path*",
-      "destination": "https://13.201.255.178/api/auth/:path*"
-    },
-    {
-      "source": "/api/problems/:path*",
-      "destination": "https://13.201.255.178/api/problems/:path*"
-    },
-    {
-      "source": "/api/submissions/:path*",
-      "destination": "https://13.201.255.178/api/submissions/:path*"
-    },
-    {
-      "source": "/api/leaderboard/:path*",
-      "destination": "https://13.201.255.178/api/leaderboard/:path*"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, PUT, DELETE, OPTIONS"
-        },
-        {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type, Authorization"
-        }
-      ]
-    }
-  ]
+  "installCommand": "npm install"
 }
