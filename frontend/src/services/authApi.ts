@@ -5,13 +5,8 @@ const API_BASE_URL = (import.meta as any).env.VITE_USER_SERVICE_URL || 'https://
 
 // Helper function to build API URLs
 const getApiUrl = (endpoint: string) => {
-  if ((import.meta as any).env.PROD) {
-    // In production, use rewrites - relative path
-    return `/api/auth${endpoint}`;
-  } else {
-    // In development, use the full backend URL
-    return `${API_BASE_URL}/api/auth${endpoint}`;
-  }
+  // Always use the full backend URL (both dev and prod)
+  return `${API_BASE_URL}/api/auth${endpoint}`;
 };
 
 // Custom fetch function that handles self-signed certificates

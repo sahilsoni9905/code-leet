@@ -5,13 +5,8 @@ const API_BASE_URL = (import.meta as any).env.VITE_SUBMISSION_SERVICE_URL || 'ht
 
 // Helper function to build API URLs
 const getApiUrl = (endpoint: string) => {
-  if ((import.meta as any).env.PROD) {
-    // In production, use rewrites - full path
-    return `/api/submissions${endpoint}`;
-  } else {
-    // In development, use the full backend URL
-    return `${API_BASE_URL}/api/submissions${endpoint}`;
-  }
+  // Always use the full backend URL (both dev and prod)
+  return `${API_BASE_URL}/api/submissions${endpoint}`;
 };
 
 const getAuthHeaders = () => {
