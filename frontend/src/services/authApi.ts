@@ -14,6 +14,20 @@ const getApiUrl = (endpoint: string) => {
   }
 };
 
+// Custom fetch function that handles self-signed certificates
+const customFetch = async (url: string, options: RequestInit = {}) => {
+  try {
+    return await fetch(url, options);
+  } catch (error) {
+    // If certificate error, show helpful message
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      console.error('Certificate error detected. Please visit the API URL in browser and accept the certificate.');
+      throw new Error('SSL Certificate not accepted. Please visit https://13.201.255.178 in your browser and accept the certificate, then try again.');
+    }
+    throw error;
+  }
+};
+
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
   return {
@@ -26,7 +40,7 @@ export async function login(
   email: string,
   password: string
 ): Promise<ApiResponse<AuthResponse>> {
-  const response = await fetch(getApiUrl('/login'), {
+  const response = await customFetch(getApiUrl('/login'), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
