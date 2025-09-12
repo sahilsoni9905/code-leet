@@ -54,8 +54,9 @@ export { io };
 app.use(cors({
   origin: [
     'http://localhost:5173', // Development
-    'https://your-vercel-app.vercel.app', // Replace with your actual Vercel URL
-    /vercel\.app$/ // Allow any Vercel domain
+    'http://localhost:5174', // Development (alternate port)
+    'https://code-leet-7etz-mtqe78zkr-sahils-projects-73628115.vercel.app', // Your Vercel domain
+    /^https:\/\/code-leet-.*\.vercel\.app$/ // Allow any Vercel domain with your project name
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

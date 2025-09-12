@@ -1,12 +1,12 @@
 import { ApiResponse, Problem } from "../types";
 
-// Always use HTTPS URL - hardcoded to avoid environment variable issues
-const API_BASE_URL = 'https://13.201.255.178';
+// Use relative URLs for same-origin requests (Vercel API routes will proxy)
+const API_BASE_URL = '';
 
 // Helper function to build API URLs
 const getApiUrl = (endpoint: string) => {
-  // Always use the full backend URL (both dev and prod)
-  return `${API_BASE_URL}/api/problems${endpoint}`;
+  // Always use relative URLs for Vercel API routes
+  return `/api/problems${endpoint}`;
 };
 
 const getAuthHeaders = () => {
