@@ -1,7 +1,7 @@
 import { ApiResponse } from "../types";
 
 // Use relative URLs for same-origin requests (Vercel API routes will proxy)
-const API_BASE_URL = '';
+const API_BASE_URL = "";
 
 // Helper function to build API URLs
 const getApiUrl = (endpoint: string) => {
@@ -23,7 +23,7 @@ export interface LeaderboardUser {
 export async function getLeaderboard(): Promise<
   ApiResponse<LeaderboardUser[]>
 > {
-  const response = await fetch(getApiUrl('/leaderboard'), {
+  const response = await fetch(getApiUrl("/leaderboard"), {
     headers: {
       "Content-Type": "application/json",
     },

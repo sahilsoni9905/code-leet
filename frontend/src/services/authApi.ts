@@ -1,7 +1,7 @@
 import { ApiResponse, AuthResponse } from "../types";
 
 // Use relative URLs for same-origin requests (Vercel API routes will proxy)
-const API_BASE_URL = '';
+const API_BASE_URL = "";
 
 // Helper function to build API URLs
 const getApiUrl = (endpoint: string) => {
@@ -21,7 +21,7 @@ export async function login(
   email: string,
   password: string
 ): Promise<ApiResponse<AuthResponse>> {
-  const response = await fetch(getApiUrl('/login'), {
+  const response = await fetch(getApiUrl("/login"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
@@ -35,7 +35,7 @@ export async function register(
   email: string,
   password: string
 ): Promise<ApiResponse<AuthResponse>> {
-  const response = await fetch(getApiUrl('/register'), {
+  const response = await fetch(getApiUrl("/register"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, email, password }),
@@ -45,7 +45,7 @@ export async function register(
 }
 
 export async function verifyToken(): Promise<ApiResponse> {
-  const response = await fetch(getApiUrl('/verify'), {
+  const response = await fetch(getApiUrl("/verify"), {
     headers: getAuthHeaders(),
   });
 

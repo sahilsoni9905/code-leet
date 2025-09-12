@@ -12,25 +12,27 @@ const PORT = process.env.PORT || 3001;
 // Rate limiting middleware
 const rateLimit = (windowMs: number, max: number) => {
   const requests = new Map();
-  
+
   return (req: any, res: any, next: any) => {
     const ip = req.ip || req.connection.remoteAddress;
     const now = Date.now();
     const windowStart = now - windowMs;
-    
+
     if (!requests.has(ip)) {
       requests.set(ip, []);
     }
-    
-    const userRequests = requests.get(ip).filter((time: number) => time > windowStart);
-    
+
+    const userRequests = requests
+      .get(ip)
+      .filter((time: number) => time > windowStart);
+
     if (userRequests.length >= max) {
-      return res.status(429).json({ 
-        success: false, 
-        message: 'Too many requests, please try again later' 
+      return res.status(429).json({
+        success: false,
+        message: "Too many requests, please try again later",
       });
     }
-    
+
     userRequests.push(now);
     requests.set(ip, userRequests);
     next();
@@ -38,18 +40,20 @@ const rateLimit = (windowMs: number, max: number) => {
 };
 
 // Middleware
-app.use(cors({
-  origin: [
-    'http://localhost:5173', // Development
-    'http://localhost:5174', // Development (alternate port)
-    'https://code-leet-7etz-mtqe78zkr-sahils-projects-73628115.vercel.app', // Your Vercel domain
-    /^https:\/\/code-leet-.*\.vercel\.app$/ // Allow any Vercel domain with your project name
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-app.use(express.json({ limit: '10mb' }));
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173", // Development
+      "http://localhost:5174", // Development (alternate port)
+      "https://code-leet-7etz-mtqe78zkr-sahils-projects-73628115.vercel.app", // Your Vercel domain
+      /^https:\/\/code-leet-.*\.vercel\.app$/, // Allow any Vercel domain with your project name
+    ],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+app.use(express.json({ limit: "10mb" }));
 app.use(rateLimit(15 * 60 * 1000, 100)); // 100 requests per 15 minutes
 
 // Database connection
