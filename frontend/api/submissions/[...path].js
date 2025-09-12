@@ -1,5 +1,17 @@
+// Disable Node.js SSL verification for self-signed certificates
+process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
+
 export default async function handler(req, res) {
     const { path } = req.query;
+
+    // Handle CORS for preflight requests
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
 
     // Construct the backend URL
     const backendPath = Array.isArray(path) ? path.join('/') : (path || '');
