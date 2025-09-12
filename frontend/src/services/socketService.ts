@@ -9,33 +9,11 @@ class SocketService {
       this.disconnect();
     }
 
-    // Using HTTPS through Nginx proxy
-    const SUBMISSION_SERVICE_URL =
-      (import.meta as any).env.VITE_SUBMISSION_SERVICE_URL ||
-      "https://13.201.255.178";
-
-    this.socket = io(SUBMISSION_SERVICE_URL, {
-      transports: ["websocket", "polling"],
-    });
-
-    this.socket.on("connect", () => {
-      console.log("Connected to submission service via WebSocket");
-      this.isConnected = true;
-
-      // Join user-specific room for receiving updates
-      this.socket?.emit("join-user-room", userId);
-    });
-
-    this.socket.on("disconnect", () => {
-      console.log("Disconnected from submission service");
-      this.isConnected = false;
-    });
-
-    this.socket.on("connect_error", (error) => {
-      console.error("WebSocket connection error:", error);
-    });
-
-    return this.socket;
+    // For now, disable WebSocket to avoid mixed content errors
+    // TODO: Configure backend for WSS support
+    console.log("WebSocket connection disabled due to SSL requirements");
+    this.isConnected = false;
+    return null;
   }
 
   disconnect() {
