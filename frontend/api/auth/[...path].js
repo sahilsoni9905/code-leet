@@ -1,6 +1,8 @@
 // Disable Node.js SSL verification for self-signed certificates
 process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 
+const https = require('https');
+
 export default async function handler(req, res) {
     const { path } = req.query;
 
@@ -21,6 +23,16 @@ export default async function handler(req, res) {
     console.log(`[AUTH PROXY] Request body:`, req.body);
 
     try {
+        // Use global fetch or import node-fetch as fallback
+        let fetchFn;
+        if (typeof fetch !== 'undefined') {
+            fetchFn = fetch;
+        } else {
+            // Fallback to node-fetch if global fetch is not available
+            const { default: nodeFetch } = await import('node-fetch');
+            fetchFn = nodeFetch;
+        }
+
         // Prepare headers
         const headers = {
             'Content-Type': 'application/json',
@@ -35,7 +47,11 @@ export default async function handler(req, res) {
         // Prepare request options
         const requestOptions = {
             method: req.method,
-            headers: headers
+            headers: headers,
+            // Create custom agent to ignore SSL errors
+            agent: new https.Agent({
+                rejectUnauthorized: false
+            })
         };
 
         // Add body for POST, PUT, PATCH requests
@@ -45,8 +61,8 @@ export default async function handler(req, res) {
 
         console.log(`[AUTH PROXY] Sending to backend:`, requestOptions);
 
-        // Make request to backend using Node.js fetch
-        const response = await fetch(backendUrl, requestOptions);
+        // Make request to backend
+        const response = await fetchFn(backendUrl, requestOptions);
 
         console.log(`[AUTH PROXY] Backend responded with status:`, response.status);
 
